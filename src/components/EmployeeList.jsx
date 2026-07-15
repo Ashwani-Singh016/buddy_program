@@ -1,9 +1,19 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import "./EmployeeList.css";
+import config from "../config";
+
 
 function EmployeeList() {
   const [employees, setEmployees] = useState([]);
-  const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [editedEmployee, setEditedEmployee] = useState({
+    name: "",
+    email: "",
+    contact: "",
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 15;
 
   useEffect(() => {
     fetchEmployees();
@@ -11,130 +21,189 @@ function EmployeeList() {
 
   const fetchEmployees = async () => {
     try {
-      const response = await axios.get("http://127.0.0.1:8000/employees");
+      // const response = await axios.get("http://127.0.0.1:8000/employees");
+      const response = await axios.get(
+  `${config.API_BASE_URL}/employees`
+);
       setEmployees(response.data);
     } catch (error) {
       console.error(error);
-      alert("Unable to fetch employee data");
     }
   };
 
-  const filteredEmployees = employees.filter((emp) => {
-    const searchText = search.toLowerCase();
-
-    return (
-      emp.emp_id.toLowerCase().includes(searchText) ||
-      emp.name.toLowerCase().includes(searchText) ||
-      emp.email.toLowerCase().includes(searchText) ||
-      emp.contact.toLowerCase().includes(searchText)
-    );
-  });
-
-  const styles = {
-    container: {
-      width: "90%",
-      margin: "40px auto",
-      fontFamily: "Arial, Helvetica, sans-serif",
-    },
-
-    title: {
-      textAlign: "center",
-      color: "#1f3b64",
-      fontSize: "40px",
-      fontWeight: "bold",
-      marginBottom: "20px",
-    },
-
-    searchContainer: {
-      display: "flex",
-      justifyContent: "flex-end",
-      marginBottom: "15px",
-    },
-
-    search: {
-      width: "250px",
-      padding: "8px 12px",
-      fontSize: "15px",
-      border: "1px solid #0d6efd",
-      borderRadius: "5px",
-      outline: "none",
-    },
-
-    table: {
-      width: "100%",
-      borderCollapse: "collapse",
-      backgroundColor: "#fff",
-      boxShadow: "0 5px 15px rgba(0,0,0,0.15)",
-    },
-
-    th: {
-      backgroundColor: "#0d6efd",
-      color: "#fff",
-      padding: "15px",
-      border: "1px solid #ddd",
-      textAlign: "center",
-      fontSize: "18px",
-    },
-
-    td: {
-      padding: "15px",
-      border: "1px solid #ddd",
-      textAlign: "center",
-      fontSize: "16px",
-    },
-
-    noData: {
-      textAlign: "center",
-      color: "red",
-      fontWeight: "bold",
-      padding: "20px",
-    },
+  const handleEdit = (emp) => {
+    setEditingId(emp.emp_id);
+    setEditedEmployee({
+      name: emp.name,
+      email: emp.email,
+      contact: emp.contact,
+    });
   };
 
+  const handleUpdate = async (emp_id) => {
+    try {
+      // await axios.put(
+      //   `http://127.0.0.1:8000/employees/${emp_id}`,
+      //   editedEmployee
+      // );
+      await axios.put(
+  `${config.API_BASE_URL}/employees/${emp_id}`,
+  editedEmployee
+);
+      setEditingId(null);
+      fetchEmployees();
+    } catch (error) {
+      alert("Update failed");
+    }
+  };
+
+  const handleDelete = async (emp_id) => {
+    if (!window.confirm("Delete this employee?")) return;
+
+    try {
+      // await axios.delete(`http://127.0.0.1:8000/employees/${emp_id}`);
+     await axios.delete(
+  `${config.API_BASE_URL}/employees/${emp_id}`
+);
+      fetchEmployees();
+    } catch (error) {
+      alert("Delete failed");
+    }
+  };
+  const lastIndex = currentPage * recordsPerPage;
+  const firstIndex = lastIndex - recordsPerPage;
+
+const currentEmployees = employees.slice(firstIndex, lastIndex);
+
+const totalPages = Math.ceil(employees.length / recordsPerPage);
+
+const nextPage = () => {
+  if (currentPage < totalPages) {
+    setCurrentPage(currentPage + 1);
+  }
+};
+
+const prevPage = () => {
+  if (currentPage > 1) {
+    setCurrentPage(currentPage - 1);
+  }
+};
+
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Employee List</h1>
+    <div className="employee-container">
+      <h1 className="employee-title">Employee List</h1>
 
-      {/* Small Search Bar */}
-      <div style={styles.searchContainer}>
-        <input
-          type="text"
-          placeholder="🔍 Search..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={styles.search}
-        />
-      </div>
-
-      <table style={styles.table}>
+      <table className="employee-table">
         <thead>
           <tr>
-            <th style={styles.th}>Employee ID</th>
-            <th style={styles.th}>Name</th>
-            <th style={styles.th}>Email</th>
-            <th style={styles.th}>Contact</th>
+            <th>Employee ID</th>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Contact</th>
+            <th>Action</th>
           </tr>
         </thead>
 
         <tbody>
-          {filteredEmployees.length > 0 ? (
-            filteredEmployees.map((emp) => (
-              <tr key={emp._id}>
-                <td style={styles.td}>{emp.emp_id}</td>
-                <td style={styles.td}>{emp.name}</td>
-                <td style={styles.td}>{emp.email}</td>
-                <td style={styles.td}>{emp.contact}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td style={styles.noData} colSpan="4">
-                No Employee Found
+          {currentEmployees.map((emp) => (
+            <tr key={emp._id}>
+              <td>{emp.emp_id}</td>
+
+              <td>
+                {editingId === emp.emp_id ? (
+                  <input
+                    className="employee-input"
+                    value={editedEmployee.name}
+                    onChange={(e) =>
+                      setEditedEmployee({
+                        ...editedEmployee,
+                        name: e.target.value,
+                      })
+                    }
+                  />
+                ) : (
+                  emp.name
+                )}
+              </td>
+
+              <td>
+                {editingId === emp.emp_id ? (
+                  <input
+                    className="employee-input"
+                    value={editedEmployee.email}
+                    onChange={(e) =>
+                      setEditedEmployee({
+                        ...editedEmployee,
+                        email: e.target.value,
+                      })
+                    }
+                  />
+                ) : (
+                  emp.email
+                )}
+              </td>
+
+              <td>
+                {editingId === emp.emp_id ? (
+                  <input
+                    className="employee-input"
+                    value={editedEmployee.contact}
+                    onChange={(e) =>
+                      setEditedEmployee({
+                        ...editedEmployee,
+                        contact: e.target.value,
+                      })
+                    }
+                  />
+                ) : (
+                  emp.contact
+                )}
+              </td>
+
+              <td>
+                {editingId === emp.emp_id ? (
+                  <button
+                    className="save-btn"
+                    onClick={() => handleUpdate(emp.emp_id)}
+                  >
+                    Save
+                  </button>
+                ) : (
+                  <button
+                    className="edit-btn"
+                    onClick={() => handleEdit(emp)}
+                  >
+                    Edit
+                  </button>
+                )}
+
+                <button
+                  className="delete-btn"
+                  onClick={() => handleDelete(emp.emp_id)}
+                >
+                  Delete
+                </button>
               </td>
             </tr>
-          )}
+          ))}
         </tbody>
       </table>
+      <div className="pagination">
+  <button onClick={prevPage} disabled={currentPage === 1}>
+    Previous
+  </button>
+
+  <span>
+    Page {currentPage} of {totalPages}
+  </span>
+
+  <button
+    onClick={nextPage}
+    disabled={currentPage === totalPages}
+  >
+    Next
+  </button>
+</div>
     </div>
   );
 }
